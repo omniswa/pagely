@@ -10,13 +10,22 @@ import '../data/providers.dart';
 import 'library_state.dart';
 
 final progressProvider =
-    NotifierProvider<ProgressNotifier, Map<int, ReadingProgress>>(ProgressNotifier.new);
+    NotifierProvider<ProgressNotifier, Map<int, ReadingProgress>>(
+      ProgressNotifier.new,
+    );
 
 class ProgressNotifier extends Notifier<Map<int, ReadingProgress>> {
   @override
   Map<int, ReadingProgress> build() => ref.read(localStoreProvider).progress;
 
-  void save(int bookId, int index, int total) {
+  void save(
+    int bookId,
+    int index,
+    int total, {
+    required int characterOffset,
+    required int characterCount,
+    required String contentHash,
+  }) {
     state = {
       ...state,
       bookId: ReadingProgress(
@@ -24,6 +33,9 @@ class ProgressNotifier extends Notifier<Map<int, ReadingProgress>> {
         index: index,
         total: total,
         updatedAt: DateTime.now(),
+        characterOffset: characterOffset,
+        characterCount: characterCount,
+        contentHash: contentHash,
       ),
     };
     unawaited(ref.read(localStoreProvider).saveProgress(state));
@@ -42,13 +54,17 @@ final lastReadBookProvider = Provider<Book?>((ref) {
   if (books == null) return null;
   final started = progress.values.where((p) => p.isStarted).toList();
   if (started.isEmpty) return null;
-  final latest = started.reduce((a, b) => a.updatedAt.isAfter(b.updatedAt) ? a : b);
+  final latest = started.reduce(
+    (a, b) => a.updatedAt.isAfter(b.updatedAt) ? a : b,
+  );
   return books.where((b) => b.id == latest.bookId).firstOrNull;
 });
 
 /// Ensures the book is on disk, then parses it off the UI thread.
-final parsedBookProvider =
-    FutureProvider.autoDispose.family<ParsedBook, Book>((ref, book) async {
+final parsedBookProvider = FutureProvider.autoDispose.family<ParsedBook, Book>((
+  ref,
+  book,
+) async {
   final repo = ref.read(bookRepositoryProvider);
   if (!await repo.isDownloaded(book)) {
     await ref.read(downloadsProvider.notifier).download(book);

@@ -16,9 +16,8 @@ import 'chapters_sheet.dart';
 import 'reader_settings_sheet.dart';
 
 void openReader(BuildContext context, Book book) {
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => ReaderScreen(book: book)),
-  );
+  Navigator.of(context)
+      .push(MaterialPageRoute<void>(builder: (_) => ReaderScreen(book: book)));
 }
 
 class ReaderScreen extends ConsumerWidget {
@@ -30,13 +29,14 @@ class ReaderScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(settingsProvider.select((s) => s.readerTheme));
     final parsed = ref.watch(parsedBookProvider(book));
-    final overlay = (palette.brightness == Brightness.dark
-            ? SystemUiOverlayStyle.light
-            : SystemUiOverlayStyle.dark)
-        .copyWith(
-      statusBarColor: Colors.transparent,
-      systemNavigationBarColor: Colors.transparent,
-    );
+    final overlay =
+        (palette.brightness == Brightness.dark
+                ? SystemUiOverlayStyle.light
+                : SystemUiOverlayStyle.dark)
+            .copyWith(
+              statusBarColor: Colors.transparent,
+              systemNavigationBarColor: Colors.transparent,
+            );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlay,
@@ -50,7 +50,10 @@ class ReaderScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(parsedBookProvider(book)),
           ),
           data: (data) => data.paragraphs.isEmpty
-              ? _ReaderMessage(palette: palette, message: 'This book appears to be empty.')
+              ? _ReaderMessage(
+                  palette: palette,
+                  message: 'This book appears to be empty.',
+                )
               : _ReaderView(book: book, parsed: data),
         ),
       ),
@@ -68,10 +71,16 @@ class _ReaderLoading extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final active = ref.watch(downloadsProvider.select((s) => s.active.containsKey(book.id)));
-    final progress = ref.watch(downloadsProvider.select((s) => s.active[book.id]));
+    final active = ref.watch(
+      downloadsProvider.select((s) => s.active.containsKey(book.id)),
+    );
+    final progress = ref.watch(
+      downloadsProvider.select((s) => s.active[book.id]),
+    );
     final text = active
-        ? (progress == null ? 'Downloading…' : 'Downloading ${(progress * 100).round()}%')
+        ? (progress == null
+              ? 'Downloading…'
+              : 'Downloading ${(progress * 100).round()}%')
         : 'Opening book…';
 
     return SafeArea(
@@ -111,14 +120,15 @@ class _ReaderLoading extends ConsumerWidget {
                     const SizedBox(height: 24),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(value: progress, minHeight: 4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 4,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       text,
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelLarge
+                      style: Theme.of(context).textTheme.labelLarge
                           ?.copyWith(color: palette.muted),
                     ),
                   ],
@@ -133,7 +143,11 @@ class _ReaderLoading extends ConsumerWidget {
 }
 
 class _ReaderMessage extends StatelessWidget {
-  const _ReaderMessage({required this.palette, required this.message, this.onRetry});
+  const _ReaderMessage({
+    required this.palette,
+    required this.message,
+    this.onRetry,
+  });
 
   final ReaderTheme palette;
   final String message;
@@ -161,19 +175,24 @@ class _ReaderMessage extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.error_outline_rounded, size: 40, color: palette.muted),
+                  Icon(
+                    Icons.error_outline_rounded,
+                    size: 40,
+                    color: palette.muted,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     message,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyLarge
+                    style: Theme.of(context).textTheme.bodyLarge
                         ?.copyWith(color: palette.foreground),
                   ),
                   if (onRetry != null) ...[
                     const SizedBox(height: 20),
-                    FilledButton.tonal(onPressed: onRetry, child: const Text('Try again')),
+                    FilledButton.tonal(
+                      onPressed: onRetry,
+                      child: const Text('Try again'),
+                    ),
                   ],
                 ],
               ),
@@ -197,10 +216,12 @@ class _ReaderView extends ConsumerStatefulWidget {
   ConsumerState<_ReaderView> createState() => _ReaderViewState();
 }
 
-class _ReaderViewState extends ConsumerState<_ReaderView> with WidgetsBindingObserver {
+class _ReaderViewState extends ConsumerState<_ReaderView>
+    with WidgetsBindingObserver {
   final _itemScroll = ItemScrollController();
   final _positions = ItemPositionsListener.create();
   late final ValueNotifier<int> _index;
+  late final ValueNotifier<int> _characterOffset;
   late final ValueNotifier<bool> _chromeVisible;
   late final ProgressNotifier _progress;
   late final int _initialIndex;
@@ -216,8 +237,26 @@ class _ReaderViewState extends ConsumerState<_ReaderView> with WidgetsBindingObs
     WidgetsBinding.instance.addObserver(this);
     _progress = ref.read(progressProvider.notifier);
     final saved = ref.read(progressProvider)[widget.book.id];
-    _initialIndex = math.max(0, math.min(saved?.index ?? 0, _count - 1));
+    final savedOffset = saved?.characterOffset;
+    final canResumeByOffset =
+        saved != null &&
+        saved.contentHash == _parsed.contentHash &&
+        savedOffset != null;
+    final int offset;
+    if (canResumeByOffset) {
+      offset = savedOffset.clamp(0, _parsed.characterCount);
+    } else if (saved != null && saved.contentHash == null) {
+      offset = (saved.fraction * _parsed.characterCount).round();
+    } else {
+      offset = 0;
+    }
+    _initialIndex = _parsed.paragraphIndexAtOffset(offset);
     _index = ValueNotifier(_initialIndex);
+    _characterOffset = ValueNotifier(
+      canResumeByOffset || (saved != null && saved.contentHash == null)
+          ? offset
+          : _parsed.paragraphOffsets[_initialIndex],
+    );
     // When resuming mid-book, start immersive so no text is hidden under the bars.
     _chromeVisible = ValueNotifier(_initialIndex == 0);
     if (!_chromeVisible.value) _applySystemUi();
@@ -234,10 +273,25 @@ class _ReaderViewState extends ConsumerState<_ReaderView> with WidgetsBindingObs
       final id = widget.book.id;
       final index = _index.value;
       final total = _count;
+      final characterOffset = _characterOffset.value;
+      final characterCount = _parsed.characterCount;
+      final contentHash = _parsed.contentHash;
       final progress = _progress;
-      unawaited(Future<void>(() => progress.save(id, index, total)));
+      unawaited(
+        Future<void>(
+          () => progress.save(
+            id,
+            index,
+            total,
+            characterOffset: characterOffset,
+            characterCount: characterCount,
+            contentHash: contentHash,
+          ),
+        ),
+      );
     }
     _index.dispose();
+    _characterOffset.dispose();
     _chromeVisible.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
@@ -245,7 +299,8 @@ class _ReaderViewState extends ConsumerState<_ReaderView> with WidgetsBindingObs
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       _saveTimer?.cancel();
       _persist();
     }
@@ -253,7 +308,9 @@ class _ReaderViewState extends ConsumerState<_ReaderView> with WidgetsBindingObs
 
   void _applySystemUi() {
     SystemChrome.setEnabledSystemUIMode(
-      _chromeVisible.value ? SystemUiMode.edgeToEdge : SystemUiMode.immersiveSticky,
+      _chromeVisible.value
+          ? SystemUiMode.edgeToEdge
+          : SystemUiMode.immersiveSticky,
     );
   }
 
@@ -269,14 +326,21 @@ class _ReaderViewState extends ConsumerState<_ReaderView> with WidgetsBindingObs
     int? top;
     var lastFullyVisible = false;
     for (final p in positions) {
-      if (p.itemTrailingEdge > 0.04 && (top == null || p.index < top)) top = p.index;
-      if (p.index == _count - 1 && p.itemTrailingEdge <= 1.0) lastFullyVisible = true;
+      if (p.itemTrailingEdge > 0.04 && (top == null || p.index < top))
+        top = p.index;
+      if (p.index == _count - 1 && p.itemTrailingEdge <= 1.0)
+        lastFullyVisible = true;
     }
     top ??= positions.first.index;
     if (lastFullyVisible) top = _count - 1;
-    if (top == _index.value) return;
+    final characterOffset = lastFullyVisible
+        ? _parsed.characterCount
+        : _parsed.paragraphOffsets[top];
+    if (top == _index.value && characterOffset == _characterOffset.value)
+      return;
 
     _index.value = top;
+    _characterOffset.value = characterOffset;
     _dirty = true;
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 700), _persist);
@@ -285,12 +349,20 @@ class _ReaderViewState extends ConsumerState<_ReaderView> with WidgetsBindingObs
   void _persist() {
     if (!_dirty) return;
     _dirty = false;
-    _progress.save(widget.book.id, _index.value, _count);
+    _progress.save(
+      widget.book.id,
+      _index.value,
+      _count,
+      characterOffset: _characterOffset.value,
+      characterCount: _parsed.characterCount,
+      contentHash: _parsed.contentHash,
+    );
   }
 
   void _seek(int index) {
     final target = math.max(0, math.min(index, _count - 1));
     _index.value = target;
+    _characterOffset.value = _parsed.paragraphOffsets[target];
     _dirty = true;
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 700), _persist);
@@ -302,7 +374,8 @@ class _ReaderViewState extends ConsumerState<_ReaderView> with WidgetsBindingObs
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => ChaptersSheet(parsed: _parsed, currentIndex: _index.value),
+      builder: (_) =>
+          ChaptersSheet(parsed: _parsed, currentIndex: _index.value),
     );
     if (target != null && mounted) _seek(target);
   }
@@ -321,7 +394,11 @@ class _ReaderViewState extends ConsumerState<_ReaderView> with WidgetsBindingObs
     final s = ref.watch(settingsProvider);
     final palette = s.readerTheme;
     final insets = MediaQuery.paddingOf(context);
-    final body = s.readerFont.style(size: s.fontSize, height: s.lineHeight, color: palette.foreground);
+    final body = s.readerFont.style(
+      size: s.fontSize,
+      height: s.lineHeight,
+      color: palette.foreground,
+    );
     final heading = s.readerFont.style(
       size: s.fontSize * 1.35,
       height: 1.3,
@@ -388,6 +465,7 @@ class _ReaderViewState extends ConsumerState<_ReaderView> with WidgetsBindingObs
             ),
             child: _BottomBar(
               index: _index,
+              characterOffset: _characterOffset,
               parsed: _parsed,
               palette: palette,
               onSeek: _seek,
@@ -421,7 +499,11 @@ class _ParagraphView extends StatelessWidget {
     final Widget text = paragraph.isHeading
         ? Padding(
             padding: const EdgeInsets.only(top: 32, bottom: 16),
-            child: Text(paragraph.text, style: headingStyle, textAlign: TextAlign.center),
+            child: Text(
+              paragraph.text,
+              style: headingStyle,
+              textAlign: TextAlign.center,
+            ),
           )
         : Padding(
             padding: EdgeInsets.only(bottom: (bodyStyle.fontSize ?? 18) * 0.9),
@@ -517,9 +599,9 @@ class _TopBar extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: palette.foreground,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: palette.foreground,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             IconButton(
@@ -545,12 +627,14 @@ class _TopBar extends StatelessWidget {
 class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.index,
+    required this.characterOffset,
     required this.parsed,
     required this.palette,
     required this.onSeek,
   });
 
   final ValueNotifier<int> index;
+  final ValueNotifier<int> characterOffset;
   final ParsedBook parsed;
   final ReaderTheme palette;
   final ValueChanged<int> onSeek;
@@ -558,17 +642,18 @@ class _BottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final total = parsed.paragraphs.length;
-
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
         child: ValueListenableBuilder<int>(
-          valueListenable: index,
+          valueListenable: characterOffset,
           builder: (context, i, _) {
-            final fraction = total <= 1 ? 0.0 : i / (total - 1);
-            final chapter = parsed.chapterAt(i)?.title ?? '';
+            final fraction = parsed.characterCount <= 0
+                ? 0.0
+                : (i / parsed.characterCount).clamp(0.0, 1.0).toDouble();
+            final paragraphIndex = index.value;
+            final chapter = parsed.chapterAt(paragraphIndex)?.title ?? '';
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -579,7 +664,9 @@ class _BottomBar extends StatelessWidget {
                         chapter,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelMedium?.copyWith(color: palette.muted),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: palette.muted,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -595,17 +682,27 @@ class _BottomBar extends StatelessWidget {
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 3,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 7,
+                    ),
+                    overlayShape: const RoundSliderOverlayShape(
+                      overlayRadius: 16,
+                    ),
                     activeTrackColor: theme.colorScheme.primary,
                     thumbColor: theme.colorScheme.primary,
-                    inactiveTrackColor: palette.foreground.withValues(alpha: 0.15),
+                    inactiveTrackColor: palette.foreground.withValues(
+                      alpha: 0.15,
+                    ),
                   ),
                   child: Slider(
-                    value: i.toDouble().clamp(0.0, math.max(1, total - 1).toDouble()).toDouble(),
+                    value: fraction,
                     min: 0,
-                    max: math.max(1, total - 1).toDouble(),
-                    onChanged: (v) => onSeek(v.round()),
+                    max: 1,
+                    onChanged: (v) => onSeek(
+                      parsed.paragraphIndexAtOffset(
+                        (v * parsed.characterCount).round(),
+                      ),
+                    ),
                   ),
                 ),
               ],

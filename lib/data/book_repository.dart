@@ -33,22 +33,53 @@ List<Book> parseCatalog(String raw) {
   return [
     for (final item in list)
       if (item is Map<String, dynamic>)
-        if (Book.tryFromJson(item) case final book? when seen.add(book.id)) book,
+        if (Book.tryFromJson(item) case final book? when seen.add(book.id))
+          book,
   ];
 }
 
 class BookRepository {
   BookRepository({required http.Client client, required LocalStore store})
-      : _client = client,
-        _store = store;
+    : _client = client,
+      _store = store;
 
   final http.Client _client;
   final LocalStore _store;
 
   // ---- Catalog -------------------------------------------------------------
 
-  /// Network first, falling back to the last cached catalog when offline.
-  Future<CatalogResult> loadCatalog() async {
+  /// Loads a previously cached catalog without waiting for the network.
+  Future<CatalogResult?> loadCachedCatalog() async {
+    try {
+      final file = await _catalogFile();
+      final fromFile = await file.exists();
+      final raw = fromFile ? await file.readAsString() : _store.catalogCache;
+      if (raw == null) return null;
+
+      final List<Book> books;
+      try {
+        books = await compute(parseCatalog, raw);
+      } on FormatException {
+        if (fromFile) {
+          await file.delete();
+        } else {
+          await _store.removeCatalogCache();
+        }
+        return null;
+      }
+
+      if (!fromFile) {
+        await _saveCatalogCache(raw);
+        await _store.removeCatalogCache();
+      }
+      return CatalogResult(books: books, fromCache: true);
+    } catch (error) {
+      throw _toAppException(error);
+    }
+  }
+
+  /// Fetches the latest catalog and saves it to app support storage.
+  Future<CatalogResult> refreshCatalog() async {
     try {
       final response = await _client
           .get(
@@ -61,22 +92,29 @@ class BookRepository {
       }
       final raw = utf8.decode(response.bodyBytes);
       final books = await compute(parseCatalog, raw);
-      await _store.saveCatalogCache(raw);
+      await _saveCatalogCache(raw);
       return CatalogResult(books: books, fromCache: false);
     } catch (error) {
-      final cached = _store.catalogCache;
-      if (cached != null) {
-        try {
-          return CatalogResult(books: await compute(parseCatalog, cached), fromCache: true);
-        } catch (_) {
-          // Fall through to the original error.
-        }
-      }
       throw _toAppException(error);
     }
   }
 
   // ---- Book files ----------------------------------------------------------
+
+  Future<File> _catalogFile() async {
+    final base = await getApplicationSupportDirectory();
+    return File('${base.path}${Platform.pathSeparator}catalog.json');
+  }
+
+  Future<void> _saveCatalogCache(String raw) async {
+    final file = await _catalogFile();
+    final temp = File(
+      '${file.path}.${DateTime.now().microsecondsSinceEpoch}.part',
+    );
+    await temp.writeAsString(raw, flush: true);
+    if (await file.exists()) await file.delete();
+    await temp.rename(file.path);
+  }
 
   Future<Directory> _booksDir() async {
     final base = await getApplicationSupportDirectory();
@@ -85,8 +123,9 @@ class BookRepository {
     return dir;
   }
 
-  Future<File> _fileFor(Book book) async =>
-      File('${(await _booksDir()).path}${Platform.pathSeparator}${book.id}.txt');
+  Future<File> _fileFor(Book book) async => File(
+    '${(await _booksDir()).path}${Platform.pathSeparator}${book.id}.txt',
+  );
 
   Future<bool> isDownloaded(Book book) async => (await _fileFor(book)).exists();
 
@@ -99,7 +138,10 @@ class BookRepository {
   }
 
   /// Streams the book to disk (via a temp file) reporting progress in 0..1.
-  Future<void> download(Book book, {void Function(double? progress)? onProgress}) async {
+  Future<void> download(
+    Book book, {
+    void Function(double? progress)? onProgress,
+  }) async {
     final target = await _fileFor(book);
     final temp = File('${target.path}.part');
     IOSink? sink;
@@ -109,15 +151,33 @@ class BookRepository {
           .timeout(AppConfig.requestTimeout);
       if (response.statusCode != 200) {
         await response.stream.drain<void>();
-        throw AppException("Couldn't download this book (HTTP ${response.statusCode}).");
+        throw AppException(
+          "Couldn't download this book (HTTP ${response.statusCode}).",
+        );
       }
       final total = response.contentLength;
       var received = 0;
       sink = temp.openWrite();
-      await for (final chunk in response.stream.timeout(AppConfig.streamTimeout)) {
-        sink.add(chunk);
-        received += chunk.length;
-        if (total != null && total > 0) onProgress?.call(received / total);
+      final deadline = DateTime.now().add(AppConfig.downloadTimeout);
+      final stream = StreamIterator<List<int>>(response.stream);
+      try {
+        while (true) {
+          final remaining = deadline.difference(DateTime.now());
+          if (remaining <= Duration.zero) {
+            throw TimeoutException('Book download timed out.');
+          }
+          final wait = remaining < AppConfig.streamTimeout
+              ? remaining
+              : AppConfig.streamTimeout;
+          if (!await stream.moveNext().timeout(wait)) break;
+
+          final chunk = stream.current;
+          sink.add(chunk);
+          received += chunk.length;
+          if (total != null && total > 0) onProgress?.call(received / total);
+        }
+      } finally {
+        await stream.cancel();
       }
       await sink.flush();
       await sink.close();
@@ -134,13 +194,21 @@ class BookRepository {
   }
 
   Future<void> deleteBook(Book book) async {
-    final file = await _fileFor(book);
-    if (await file.exists()) await file.delete();
+    try {
+      final file = await _fileFor(book);
+      if (await file.exists()) await file.delete();
+    } catch (error) {
+      throw _toAppException(error);
+    }
   }
 
   Future<void> deleteAll() async {
-    final dir = await _booksDir();
-    if (await dir.exists()) await dir.delete(recursive: true);
+    try {
+      final dir = await _booksDir();
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } catch (error) {
+      throw _toAppException(error);
+    }
   }
 
   AppException _toAppException(Object error) {
@@ -154,7 +222,7 @@ class BookRepository {
       );
     }
     if (error is FileSystemException) {
-      return const AppException("Couldn't save the book on this device.");
+      return const AppException("Couldn't save data on this device.");
     }
     if (error is FormatException) {
       return const AppException('The library data is invalid.');

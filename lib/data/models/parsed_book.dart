@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
+
 class Paragraph {
   const Paragraph(this.text, {this.isHeading = false});
   final String text;
@@ -16,9 +18,37 @@ class Chapter {
 }
 
 class ParsedBook {
-  const ParsedBook({required this.paragraphs, required this.chapters});
+  const ParsedBook({
+    required this.paragraphs,
+    required this.chapters,
+    this.paragraphOffsets = const [],
+    this.characterCount = 0,
+    this.contentHash = '',
+  });
+
   final List<Paragraph> paragraphs;
   final List<Chapter> chapters;
+  final List<int> paragraphOffsets;
+  final int characterCount;
+  final String contentHash;
+
+  int paragraphIndexAtOffset(int offset) {
+    if (paragraphs.isEmpty || paragraphOffsets.length != paragraphs.length) {
+      return 0;
+    }
+    final target = offset.clamp(0, characterCount);
+    var low = 0;
+    var high = paragraphOffsets.length;
+    while (low < high) {
+      final middle = (low + high) ~/ 2;
+      if (paragraphOffsets[middle] <= target) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
+    return low == 0 ? 0 : low - 1;
+  }
 
   /// The chapter that contains the paragraph at [index].
   Chapter? chapterAt(int index) {
@@ -50,6 +80,7 @@ ParsedBook parseBookText(String raw) {
       .replaceAll('\r', '\n')
       .trim();
   if (text.isEmpty) return const ParsedBook(paragraphs: [], chapters: []);
+  final normalizedText = text.replaceAll(_whitespace, ' ').trim();
 
   var chunks = text.split(_blankLine);
   // Some files separate paragraphs with a single newline only.
@@ -57,14 +88,25 @@ ParsedBook parseBookText(String raw) {
 
   final paragraphs = <Paragraph>[];
   final chapters = <Chapter>[];
+  final paragraphOffsets = <int>[];
+  var characterOffset = 0;
   for (final chunk in chunks) {
     final body = chunk.replaceAll(_whitespace, ' ').trim();
     if (body.isEmpty) continue;
     final heading = _isHeading(body);
     if (heading) chapters.add(Chapter(body, paragraphs.length));
+    paragraphOffsets.add(characterOffset);
     paragraphs.add(Paragraph(body, isHeading: heading));
+    characterOffset += body.length + 1;
   }
-  return ParsedBook(paragraphs: paragraphs, chapters: chapters);
+  if (paragraphs.isNotEmpty) characterOffset--;
+  return ParsedBook(
+    paragraphs: paragraphs,
+    chapters: chapters,
+    paragraphOffsets: paragraphOffsets,
+    characterCount: characterOffset,
+    contentHash: sha256.convert(utf8.encode(normalizedText)).toString(),
+  );
 }
 
 bool _isHeading(String s) {

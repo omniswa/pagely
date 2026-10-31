@@ -9,19 +9,32 @@ import '../data/providers.dart';
 
 // ---- Catalog -----------------------------------------------------------------
 
-final catalogProvider =
-    AsyncNotifierProvider<CatalogNotifier, CatalogResult>(CatalogNotifier.new);
+final catalogProvider = AsyncNotifierProvider<CatalogNotifier, CatalogResult>(
+  CatalogNotifier.new,
+);
 
 class CatalogNotifier extends AsyncNotifier<CatalogResult> {
+  Future<bool>? _refreshing;
+
   @override
-  Future<CatalogResult> build() => ref.read(bookRepositoryProvider).loadCatalog();
+  Future<CatalogResult> build() async {
+    final repository = ref.read(bookRepositoryProvider);
+    final cached = await repository.loadCachedCatalog();
+    if (cached == null) return repository.refreshCatalog();
+
+    Timer.run(() => unawaited(refresh()));
+    return cached;
+  }
 
   /// Returns true when fresh data was fetched, false when offline/failed.
-  Future<bool> refresh() async {
+  Future<bool> refresh() =>
+      _refreshing ??= _refreshCatalog().whenComplete(() => _refreshing = null);
+
+  Future<bool> _refreshCatalog() async {
     try {
-      final result = await ref.read(bookRepositoryProvider).loadCatalog();
+      final result = await ref.read(bookRepositoryProvider).refreshCatalog();
       state = AsyncData(result);
-      return !result.fromCache;
+      return true;
     } catch (e, st) {
       if (!state.hasValue) state = AsyncError(e, st);
       return false;
@@ -62,16 +75,21 @@ class LibraryQuery {
   final LibraryFilter filter;
   final LibrarySort sort;
 
-  LibraryQuery copyWith({String? text, LibraryFilter? filter, LibrarySort? sort}) =>
-      LibraryQuery(
-        text: text ?? this.text,
-        filter: filter ?? this.filter,
-        sort: sort ?? this.sort,
-      );
+  LibraryQuery copyWith({
+    String? text,
+    LibraryFilter? filter,
+    LibrarySort? sort,
+  }) => LibraryQuery(
+    text: text ?? this.text,
+    filter: filter ?? this.filter,
+    sort: sort ?? this.sort,
+  );
 }
 
 final libraryQueryProvider =
-    NotifierProvider<LibraryQueryNotifier, LibraryQuery>(LibraryQueryNotifier.new);
+    NotifierProvider<LibraryQueryNotifier, LibraryQuery>(
+      LibraryQueryNotifier.new,
+    );
 
 class LibraryQueryNotifier extends Notifier<LibraryQuery> {
   @override
@@ -84,8 +102,9 @@ class LibraryQueryNotifier extends Notifier<LibraryQuery> {
 
 // ---- Favorites -----------------------------------------------------------------
 
-final favoritesProvider =
-    NotifierProvider<FavoritesNotifier, Set<int>>(FavoritesNotifier.new);
+final favoritesProvider = NotifierProvider<FavoritesNotifier, Set<int>>(
+  FavoritesNotifier.new,
+);
 
 class FavoritesNotifier extends Notifier<Set<int>> {
   @override
@@ -111,11 +130,15 @@ class DownloadsState {
   final Map<int, double?> active;
 
   DownloadsState copyWith({Set<int>? completed, Map<int, double?>? active}) =>
-      DownloadsState(completed: completed ?? this.completed, active: active ?? this.active);
+      DownloadsState(
+        completed: completed ?? this.completed,
+        active: active ?? this.active,
+      );
 }
 
-final downloadsProvider =
-    NotifierProvider<DownloadsNotifier, DownloadsState>(DownloadsNotifier.new);
+final downloadsProvider = NotifierProvider<DownloadsNotifier, DownloadsState>(
+  DownloadsNotifier.new,
+);
 
 class DownloadsNotifier extends Notifier<DownloadsState> {
   final Map<int, Future<void>> _inflight = {};
@@ -126,7 +149,8 @@ class DownloadsNotifier extends Notifier<DownloadsState> {
 
   /// De-duplicates concurrent downloads of the same book.
   Future<void> download(Book book) =>
-      _inflight[book.id] ??= _run(book).whenComplete(() => _inflight.remove(book.id));
+      _inflight[book.id] ??= _run(book)
+          .whenComplete(() => _inflight.remove(book.id));
 
   Future<void> _run(Book book) async {
     _setProgress(book.id, null);
@@ -145,7 +169,8 @@ class DownloadsNotifier extends Notifier<DownloadsState> {
   void _setProgress(int id, double? value) {
     final has = state.active.containsKey(id);
     final prev = state.active[id];
-    if (has && prev != null && value != null && (value - prev).abs() < 0.01) return;
+    if (has && prev != null && value != null && (value - prev).abs() < 0.01)
+      return;
     state = state.copyWith(active: {...state.active, id: value});
   }
 
@@ -194,7 +219,8 @@ final visibleBooksProvider = Provider<AsyncValue<List<Book>>>((ref) {
 });
 
 Comparator<Book> _comparator(LibrarySort sort) {
-  int byTitle(Book a, Book b) => a.title.toLowerCase().compareTo(b.title.toLowerCase());
+  int byTitle(Book a, Book b) =>
+      a.title.toLowerCase().compareTo(b.title.toLowerCase());
   final epoch = DateTime.fromMillisecondsSinceEpoch(0);
   switch (sort) {
     case LibrarySort.title:

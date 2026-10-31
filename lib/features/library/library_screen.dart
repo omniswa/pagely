@@ -57,6 +57,7 @@ class LibraryScreen extends ConsumerWidget {
                   const SizedBox(width: 8),
                 ],
               ),
+              const SliverToBoxAdapter(child: _LibraryIntro()),
               const SliverToBoxAdapter(child: _SearchAndFilters()),
               if (offline) const SliverToBoxAdapter(child: _OfflineBanner()),
               if (showContinue) const SliverToBoxAdapter(child: ContinueReadingCard()),
@@ -79,8 +80,11 @@ class LibraryScreen extends ConsumerWidget {
                     return [SliverFillRemaining(hasScrollBody: false, child: _EmptyState(query: query))];
                   }
                   return [
+                    SliverToBoxAdapter(
+                      child: _CollectionHeading(count: list.length),
+                    ),
                     SliverPadding(
-                      padding: EdgeInsets.fromLTRB(20, 8, 20, 24 + bottomInset),
+                      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + bottomInset),
                       sliver: AdaptiveBookGrid(
                         itemCount: list.length,
                         itemBuilder: (context, i) {
@@ -95,6 +99,116 @@ class LibraryScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LibraryIntro extends StatelessWidget {
+  const _LibraryIntro();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.primaryContainer.withValues(alpha: 0.58),
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+          child: Row(
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: Icon(
+                    Icons.auto_stories_rounded,
+                    color: scheme.onPrimary,
+                    size: 26,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'YOUR PERSONAL BOOKSHELF',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.onPrimaryContainer.withValues(alpha: 0.75),
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'A world of stories.',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CollectionHeading extends StatelessWidget {
+  const _CollectionHeading({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Row(
+        children: [
+          Text(
+            'YOUR COLLECTION',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const Spacer(),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: scheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              child: Text(
+                '$count ${count == 1 ? 'book' : 'books'}',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: scheme.onSecondaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

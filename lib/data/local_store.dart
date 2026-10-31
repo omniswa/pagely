@@ -18,13 +18,16 @@ class LocalStore {
   static const _settingsKey = 'settings_v1';
 
   String? get catalogCache => _prefs.getString(_catalogKey);
-  Future<void> saveCatalogCache(String raw) => _prefs.setString(_catalogKey, raw);
+  Future<void> removeCatalogCache() async {
+    await _prefs.remove(_catalogKey);
+  }
 
   Set<int> get favorites => _readIntSet(_favoritesKey);
   Future<void> saveFavorites(Set<int> ids) => _writeIntSet(_favoritesKey, ids);
 
   Set<int> get downloaded => _readIntSet(_downloadedKey);
-  Future<void> saveDownloaded(Set<int> ids) => _writeIntSet(_downloadedKey, ids);
+  Future<void> saveDownloaded(Set<int> ids) =>
+      _writeIntSet(_downloadedKey, ids);
 
   Map<int, ReadingProgress> get progress {
     final raw = _prefs.getString(_progressKey);
@@ -40,7 +43,8 @@ class LocalStore {
     }
   }
 
-  Future<void> saveProgress(Map<int, ReadingProgress> value) => _prefs.setString(
+  Future<void> saveProgress(Map<int, ReadingProgress> value) =>
+      _prefs.setString(
         _progressKey,
         jsonEncode(value.values.map((p) => p.toJson()).toList()),
       );
@@ -59,7 +63,10 @@ class LocalStore {
       _prefs.setString(_settingsKey, jsonEncode(s.toJson()));
 
   Set<int> _readIntSet(String key) =>
-      (_prefs.getStringList(key) ?? const <String>[]).map(int.tryParse).whereType<int>().toSet();
+      (_prefs.getStringList(key) ?? const <String>[])
+          .map(int.tryParse)
+          .whereType<int>()
+          .toSet();
 
   Future<void> _writeIntSet(String key, Set<int> ids) =>
       _prefs.setStringList(key, ids.map((e) => '$e').toList());

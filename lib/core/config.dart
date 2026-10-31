@@ -9,6 +9,7 @@ abstract final class AppConfig {
   static const String version = '1.0.0';
   static const Duration requestTimeout = Duration(seconds: 20);
   static const Duration streamTimeout = Duration(seconds: 30);
+  static const Duration downloadTimeout = Duration(minutes: 2);
 
   static Uri resolve(String path) {
     final base = Uri.parse(baseUrl.endsWith('/') ? baseUrl : '$baseUrl/');
