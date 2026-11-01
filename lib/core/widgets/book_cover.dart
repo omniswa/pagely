@@ -44,9 +44,9 @@ class BookCover extends StatelessWidget {
                   fit: BoxFit.cover,
                   memCacheWidth: cacheWidth,
                   fadeInDuration: const Duration(milliseconds: 180),
-                  placeholder: (_, __) =>
+                  placeholder: (_, _) =>
                       ColoredBox(color: scheme.surfaceContainerHighest),
-                  errorWidget: (_, __, ___) => _GeneratedCover(book: book),
+                  errorWidget: (_, _, _) => _GeneratedCover(book: book),
                 ),
         ),
       ),

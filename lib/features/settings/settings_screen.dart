@@ -120,7 +120,7 @@ class SettingsScreen extends ConsumerWidget {
                   children: [
                     ListTile(
                       leading: Icon(Icons.auto_stories_rounded),
-                      title: Text('Pagely'),
+                      title: Text('3NDING'),
                       subtitle: Text('Version ${AppConfig.version}'),
                     ),
                     Divider(height: 1),

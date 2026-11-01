@@ -43,31 +43,13 @@ class LibraryScreen extends ConsumerWidget {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverAppBar(
-                floating: true,
-                snap: true,
-                titleSpacing: 20,
-                title: const Text('Library'),
-                actions: [
-                  const _SortButton(),
-                  IconButton(
-                    tooltip: 'Settings',
-                    icon: const Icon(Icons.tune_rounded),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const SettingsScreen(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              ),
-              const SliverToBoxAdapter(child: _SearchAndFilters()),
+              const _LibraryAppBar(),
+              const SliverToBoxAdapter(child: _LibraryFilters()),
               if (offline) const SliverToBoxAdapter(child: _OfflineBanner()),
               if (showContinue)
                 const SliverToBoxAdapter(child: ContinueReadingCard()),
               ...books.when<List<Widget>>(
-                loading: () => [const _SkeletonGrid()],
+                loading: () => [const _LibraryLoading()],
                 error: (e, _) => [
                   SliverFillRemaining(
                     hasScrollBody: false,
@@ -163,21 +145,125 @@ class _CollectionHeading extends StatelessWidget {
   }
 }
 
-class _SearchAndFilters extends ConsumerStatefulWidget {
-  const _SearchAndFilters();
+class _LibraryAppBar extends ConsumerStatefulWidget {
+  const _LibraryAppBar();
 
   @override
-  ConsumerState<_SearchAndFilters> createState() => _SearchAndFiltersState();
+  ConsumerState<_LibraryAppBar> createState() => _LibraryAppBarState();
 }
 
-class _SearchAndFiltersState extends ConsumerState<_SearchAndFilters> {
-  final _controller = TextEditingController();
+class _LibraryAppBarState extends ConsumerState<_LibraryAppBar> {
+  late final TextEditingController _controller;
+  final _focusNode = FocusNode();
+  var _searching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: ref.read(libraryQueryProvider).text,
+    );
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
+
+  void _openSearch() {
+    setState(() => _searching = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
+
+  void _closeSearch() {
+    _controller.clear();
+    ref.read(libraryQueryProvider.notifier).setText('');
+    _focusNode.unfocus();
+    setState(() => _searching = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final notifier = ref.read(libraryQueryProvider.notifier);
+
+    return SliverAppBar(
+      floating: true,
+      snap: true,
+      automaticallyImplyLeading: false,
+      leading: _searching
+          ? IconButton(
+              tooltip: 'Close search',
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: _closeSearch,
+            )
+          : null,
+      leadingWidth: _searching ? 56 : null,
+      titleSpacing: _searching ? 0 : 20,
+      title: _searching
+          ? TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              textInputAction: TextInputAction.search,
+              onChanged: notifier.setText,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 36,
+                  minHeight: 40,
+                ),
+                hintText: 'Search title or author',
+                hintStyle: const TextStyle(fontSize: 14),
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _controller,
+                  builder: (_, value, _) => value.text.isEmpty
+                      ? const SizedBox.shrink()
+                      : IconButton(
+                          tooltip: 'Clear search',
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () {
+                            _controller.clear();
+                            notifier.setText('');
+                          },
+                        ),
+                ),
+              ),
+            )
+          : const Text(
+              '3NDING',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+      actions: _searching
+          ? null
+          : [
+              IconButton(
+                tooltip: 'Search',
+                icon: const Icon(Icons.search_rounded),
+                onPressed: _openSearch,
+              ),
+              const _SortButton(),
+              IconButton(
+                tooltip: 'Settings',
+                icon: const Icon(Icons.tune_rounded),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SettingsScreen(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+    );
+  }
+}
+
+class _LibraryFilters extends ConsumerWidget {
+  const _LibraryFilters();
 
   static IconData _iconFor(LibraryFilter f) => switch (f) {
     LibraryFilter.all => Icons.grid_view_rounded,
@@ -186,59 +272,34 @@ class _SearchAndFiltersState extends ConsumerState<_SearchAndFilters> {
   };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(libraryQueryProvider.notifier);
     final filter = ref.watch(libraryQueryProvider.select((q) => q.filter));
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: _controller,
-            textInputAction: TextInputAction.search,
-            onChanged: notifier.setText,
-            decoration: InputDecoration(
-              hintText: 'Search title or author',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: ValueListenableBuilder<TextEditingValue>(
-                valueListenable: _controller,
-                builder: (_, value, __) => value.text.isEmpty
-                    ? const SizedBox.shrink()
-                    : IconButton(
-                        tooltip: 'Clear',
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () {
-                          _controller.clear();
-                          notifier.setText('');
-                        },
-                      ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final f in LibraryFilter.values)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      avatar: Icon(_iconFor(f), size: 18),
-                      label: Text(
-                        f.label,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      selected: filter == f,
-                      onSelected: (_) => notifier.setFilter(f),
-                    ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final f in LibraryFilter.values)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ChoiceChip(
+                  avatar: Icon(_iconFor(f), size: 18),
+                  label: Text(
+                    f.label,
+                    style: const TextStyle(fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.visible,
+                    softWrap: false,
                   ),
-              ],
-            ),
-          ),
-        ],
+                  selected: filter == f,
+                  onSelected: (_) => notifier.setFilter(f),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -343,43 +404,33 @@ class _EmptyState extends ConsumerWidget {
   }
 }
 
-class _SkeletonGrid extends StatelessWidget {
-  const _SkeletonGrid();
+class _LibraryLoading extends StatelessWidget {
+  const _LibraryLoading();
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
-    Widget bar(double widthFactor, double height) => FractionallySizedBox(
-      widthFactor: widthFactor,
-      alignment: Alignment.centerLeft,
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(6),
-        ),
-      ),
-    );
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-      sliver: AdaptiveBookGrid(
-        itemCount: 6,
-        itemBuilder: (_, __) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final scheme = Theme.of(context).colorScheme;
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            AspectRatio(
-              aspectRatio: 2 / 3,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: scheme.primary,
+                backgroundColor: scheme.surfaceContainerHighest,
               ),
             ),
-            const SizedBox(height: 10),
-            bar(0.85, 12),
-            const SizedBox(height: 6),
-            bar(0.5, 10),
+            const SizedBox(height: 16),
+            Text(
+              'Loading your library',
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
           ],
         ),
       ),

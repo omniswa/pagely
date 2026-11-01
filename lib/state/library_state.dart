@@ -171,8 +171,9 @@ class DownloadsNotifier extends Notifier<DownloadsState> {
   void _setProgress(int id, double? value) {
     final has = state.active.containsKey(id);
     final prev = state.active[id];
-    if (has && prev != null && value != null && (value - prev).abs() < 0.01)
+    if (has && prev != null && value != null && (value - prev).abs() < 0.01) {
       return;
+    }
     state = state.copyWith(active: {...state.active, id: value});
   }
 

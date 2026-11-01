@@ -18,6 +18,12 @@ void main() {
     expect(ReadingProgress.tryFromJson(progress.toJson())?.characterOffset, 75);
   });
 
+  test('does not report 100 percent until progress is complete', () {
+    expect(ReadingProgress.percentageForFraction(0.995), 99);
+    expect(ReadingProgress.percentageForFraction(0.999), 99);
+    expect(ReadingProgress.percentageForFraction(1), 100);
+  });
+
   test('continues reading legacy paragraph-based progress', () {
     final progress = ReadingProgress.tryFromJson({
       'id': 1,

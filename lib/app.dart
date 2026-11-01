@@ -5,8 +5,8 @@ import 'core/theme/app_theme.dart';
 import 'features/library/library_screen.dart';
 import 'state/settings_state.dart';
 
-class PagelyApp extends ConsumerWidget {
-  const PagelyApp({super.key});
+class EndingApp extends ConsumerWidget {
+  const EndingApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -15,7 +15,7 @@ class PagelyApp extends ConsumerWidget {
     final seed = AppTheme.accentAt(accentIndex).color;
 
     return MaterialApp(
-      title: 'Pagely',
+      title: '3NDING',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: AppTheme.build(Brightness.light, seed),

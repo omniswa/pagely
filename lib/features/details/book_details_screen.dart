@@ -6,6 +6,7 @@ import '../../core/errors.dart';
 import '../../core/ui.dart';
 import '../../core/widgets/book_cover.dart';
 import '../../data/models/book.dart';
+import '../../data/models/reading_progress.dart';
 import '../../state/library_state.dart';
 import '../../state/reading_state.dart';
 import '../reader/reader_screen.dart';
@@ -51,7 +52,9 @@ class BookDetailsScreen extends ConsumerWidget {
     final downloadProgress = downloads.active[book.id];
     final progress = ref.watch(progressProvider.select((m) => m[book.id]));
     final started = progress?.isStarted ?? false;
-    final percent = ((progress?.fraction ?? 0) * 100).round();
+    final percent = ReadingProgress.percentageForFraction(
+      progress?.fraction ?? 0,
+    );
 
     return Scaffold(
       appBar: AppBar(

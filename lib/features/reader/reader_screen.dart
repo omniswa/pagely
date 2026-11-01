@@ -9,6 +9,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../../core/theme/reader_style.dart';
 import '../../data/models/book.dart';
 import '../../data/models/parsed_book.dart';
+import '../../data/models/reading_progress.dart';
 import '../../state/library_state.dart';
 import '../../state/reading_state.dart';
 import '../../state/settings_state.dart';
@@ -257,9 +258,7 @@ class _ReaderViewState extends ConsumerState<_ReaderView>
           ? offset
           : _parsed.paragraphOffsets[_initialIndex],
     );
-    // When resuming mid-book, start immersive so no text is hidden under the bars.
-    _chromeVisible = ValueNotifier(_initialIndex == 0);
-    if (!_chromeVisible.value) _applySystemUi();
+    _chromeVisible = ValueNotifier(true);
     _positions.itemPositions.addListener(_onPositionsChanged);
   }
 
@@ -326,18 +325,31 @@ class _ReaderViewState extends ConsumerState<_ReaderView>
     int? top;
     var lastFullyVisible = false;
     for (final p in positions) {
-      if (p.itemTrailingEdge > 0.04 && (top == null || p.index < top))
+      if (p.itemTrailingEdge > 0.04 && (top == null || p.index < top)) {
         top = p.index;
-      if (p.index == _count - 1 && p.itemTrailingEdge <= 1.0)
+      }
+      if (p.index == _count - 1 && p.itemTrailingEdge <= 1.0) {
         lastFullyVisible = true;
+      }
     }
     top ??= positions.first.index;
     if (lastFullyVisible) top = _count - 1;
+    final position = positions.firstWhere((p) => p.index == top);
+    final paragraph = _parsed.paragraphs[top];
+    final paragraphExtent =
+        position.itemTrailingEdge - position.itemLeadingEdge;
+    final paragraphFraction = paragraphExtent <= 0
+        ? 0.0
+        : (-position.itemLeadingEdge / paragraphExtent)
+              .clamp(0.0, 1.0)
+              .toDouble();
     final characterOffset = lastFullyVisible
         ? _parsed.characterCount
-        : _parsed.paragraphOffsets[top];
-    if (top == _index.value && characterOffset == _characterOffset.value)
+        : _parsed.paragraphOffsets[top] +
+              (paragraph.text.length * paragraphFraction).round();
+    if (top == _index.value && characterOffset == _characterOffset.value) {
       return;
+    }
 
     _index.value = top;
     _characterOffset.value = characterOffset;
@@ -377,7 +389,11 @@ class _ReaderViewState extends ConsumerState<_ReaderView>
       builder: (_) =>
           ChaptersSheet(parsed: _parsed, currentIndex: _index.value),
     );
-    if (target != null && mounted) _seek(target);
+    if (target != null && mounted) {
+      _seek(target);
+      _chromeVisible.value = false;
+      _applySystemUi();
+    }
   }
 
   void _openSettings() {
@@ -671,7 +687,7 @@ class _BottomBar extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      '${(fraction * 100).round()}%',
+                      '${ReadingProgress.percentageForFraction(fraction)}%',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: palette.foreground,
                         fontWeight: FontWeight.w600,

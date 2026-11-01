@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -39,9 +38,10 @@ List<Book> parseCatalog(String raw) {
 }
 
 class BookRepository {
+  // Keep the named API while retaining library-private storage fields.
   BookRepository({required http.Client client, required LocalStore store})
-    : _client = client,
-      _store = store;
+    : _client = client, // ignore: prefer_initializing_formals
+      _store = store; // ignore: prefer_initializing_formals
 
   final http.Client _client;
   final LocalStore _store;

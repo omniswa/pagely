@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/book_cover.dart';
+import '../../../data/models/reading_progress.dart';
 import '../../../state/reading_state.dart';
 import '../../reader/reader_screen.dart';
 
@@ -76,7 +77,7 @@ class ContinueReadingCard extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${(fraction * 100).round()}% read',
+                        '${ReadingProgress.percentageForFraction(fraction)}% read',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),

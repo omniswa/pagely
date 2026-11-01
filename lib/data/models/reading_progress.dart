@@ -20,6 +20,11 @@ class ReadingProgress {
   final int? characterCount;
   final String? contentHash;
 
+  static int percentageForFraction(double fraction) {
+    final normalized = fraction.clamp(0.0, 1.0).toDouble();
+    return normalized == 1.0 ? 100 : (normalized * 100).floor();
+  }
+
   double get fraction {
     if (characterOffset != null &&
         characterCount != null &&

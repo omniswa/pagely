@@ -34,10 +34,10 @@ class LocalStore {
     if (raw == null) return {};
     try {
       final list = jsonDecode(raw) as List<dynamic>;
-      return {
-        for (final item in list)
-          if (ReadingProgress.tryFromJson(item) case final p?) p.bookId: p,
-      };
+      final progress = list
+          .map(ReadingProgress.tryFromJson)
+          .whereType<ReadingProgress>();
+      return {for (final entry in progress) entry.bookId: entry};
     } catch (_) {
       return {};
     }
