@@ -19,4 +19,18 @@ void main() {
 
     expect(original.contentHash, isNot(changed.contentHash));
   });
+
+  test('detects headings wrapped in three dashes, not dash-only lines', () {
+    final parsed = parseBookText(
+      '--- Chapter Title ---\n\n------\n\n--- ------ ---',
+    );
+
+    expect(parsed.chapters, hasLength(1));
+    expect(parsed.chapters.single.title, '--- Chapter Title ---');
+    expect(parsed.paragraphs.map((paragraph) => paragraph.isHeading), [
+      true,
+      false,
+      false,
+    ]);
+  });
 }

@@ -19,16 +19,19 @@ class LibraryScreen extends ConsumerWidget {
   Future<void> _refresh(BuildContext context, WidgetRef ref) async {
     final ok = await ref.read(catalogProvider.notifier).refresh();
     if (!ok && context.mounted) {
-      showAppSnackBar(context, "Couldn't refresh. Showing your saved library.");
+      showAppSnackBar(context, "Couldn't refresh. Showing the saved library.");
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final books = ref.watch(visibleBooksProvider);
-    final offline = ref.watch(catalogProvider.select((c) => c.value?.fromCache ?? false));
+    final offline = ref.watch(
+      catalogProvider.select((c) => c.value?.fromCache ?? false),
+    );
     final query = ref.watch(libraryQueryProvider);
-    final showContinue = query.text.isEmpty && query.filter == LibraryFilter.all;
+    final showContinue =
+        query.text.isEmpty && query.filter == LibraryFilter.all;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
@@ -51,16 +54,18 @@ class LibraryScreen extends ConsumerWidget {
                     tooltip: 'Settings',
                     icon: const Icon(Icons.tune_rounded),
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SettingsScreen(),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                 ],
               ),
-              const SliverToBoxAdapter(child: _LibraryIntro()),
               const SliverToBoxAdapter(child: _SearchAndFilters()),
               if (offline) const SliverToBoxAdapter(child: _OfflineBanner()),
-              if (showContinue) const SliverToBoxAdapter(child: ContinueReadingCard()),
+              if (showContinue)
+                const SliverToBoxAdapter(child: ContinueReadingCard()),
               ...books.when<List<Widget>>(
                 loading: () => [const _SkeletonGrid()],
                 error: (e, _) => [
@@ -68,8 +73,10 @@ class LibraryScreen extends ConsumerWidget {
                     hasScrollBody: false,
                     child: StateMessage(
                       svg: AppSvgs.offline,
-                      title: "Can't load your library",
-                      message: e is AppException ? e.message : 'Something went wrong.',
+                      title: "Can't load the library",
+                      message: e is AppException
+                          ? e.message
+                          : 'Something went wrong.',
                       actionLabel: 'Try again',
                       onAction: () => ref.invalidate(catalogProvider),
                     ),
@@ -77,90 +84,32 @@ class LibraryScreen extends ConsumerWidget {
                 ],
                 data: (list) {
                   if (list.isEmpty) {
-                    return [SliverFillRemaining(hasScrollBody: false, child: _EmptyState(query: query))];
+                    return [
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _EmptyState(query: query),
+                      ),
+                    ];
                   }
                   return [
                     SliverToBoxAdapter(
                       child: _CollectionHeading(count: list.length),
                     ),
                     SliverPadding(
-                      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + bottomInset),
+                      padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + bottomInset),
                       sliver: AdaptiveBookGrid(
                         itemCount: list.length,
                         itemBuilder: (context, i) {
                           final Book book = list[i];
-                          return BookCard(book: book, onTap: () => openBookDetails(context, book));
+                          return BookCard(
+                            book: book,
+                            onTap: () => openBookDetails(context, book),
+                          );
                         },
                       ),
                     ),
                   ];
                 },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LibraryIntro extends StatelessWidget {
-  const _LibraryIntro();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: scheme.primaryContainer.withValues(alpha: 0.58),
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-          child: Row(
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: scheme.primary,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: SizedBox(
-                  width: 52,
-                  height: 52,
-                  child: Icon(
-                    Icons.auto_stories_rounded,
-                    color: scheme.onPrimary,
-                    size: 26,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'YOUR PERSONAL BOOKSHELF',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: scheme.onPrimaryContainer.withValues(alpha: 0.75),
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'A world of stories.',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: scheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -184,7 +133,7 @@ class _CollectionHeading extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            'YOUR COLLECTION',
+            'COLLECTION',
             style: theme.textTheme.labelLarge?.copyWith(
               color: scheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
@@ -231,10 +180,10 @@ class _SearchAndFiltersState extends ConsumerState<_SearchAndFilters> {
   }
 
   static IconData _iconFor(LibraryFilter f) => switch (f) {
-        LibraryFilter.all => Icons.grid_view_rounded,
-        LibraryFilter.favorites => Icons.favorite_border_rounded,
-        LibraryFilter.downloaded => Icons.download_done_rounded,
-      };
+    LibraryFilter.all => Icons.grid_view_rounded,
+    LibraryFilter.favorites => Icons.favorite_border_rounded,
+    LibraryFilter.downloaded => Icons.download_done_rounded,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -275,10 +224,13 @@ class _SearchAndFiltersState extends ConsumerState<_SearchAndFilters> {
               children: [
                 for (final f in LibraryFilter.values)
                   Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
                       avatar: Icon(_iconFor(f), size: 18),
-                      label: Text(f.label),
+                      label: Text(
+                        f.label,
+                        style: const TextStyle(fontSize: 12),
+                      ),
                       selected: filter == f,
                       onSelected: (_) => notifier.setFilter(f),
                     ),
@@ -326,20 +278,22 @@ class _OfflineBanner extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: scheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(4),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              Icon(Icons.cloud_off_rounded, size: 18, color: scheme.onSecondaryContainer),
+              Icon(
+                Icons.cloud_off_rounded,
+                size: 18,
+                color: scheme.onSecondaryContainer,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Offline — showing your saved library',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
+                  'Offline — showing the saved library',
+                  style: Theme.of(context).textTheme.labelLarge
                       ?.copyWith(color: scheme.onSecondaryContainer),
                 ),
               ),
@@ -380,7 +334,7 @@ class _EmptyState extends ConsumerWidget {
       case LibraryFilter.all:
         return StateMessage(
           svg: AppSvgs.emptyLibrary,
-          title: 'Your library is empty',
+          title: 'The library is empty',
           message: 'No books were found. Pull down to refresh.',
           actionLabel: 'Refresh',
           onAction: () => ref.read(catalogProvider.notifier).refresh(),
@@ -396,15 +350,18 @@ class _SkeletonGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     Widget bar(double widthFactor, double height) => FractionallySizedBox(
-          widthFactor: widthFactor,
-          alignment: Alignment.centerLeft,
-          child: Container(
-            height: height,
-            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
-          ),
-        );
+      widthFactor: widthFactor,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(6),
+        ),
+      ),
+    );
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       sliver: AdaptiveBookGrid(
         itemCount: 6,
         itemBuilder: (_, __) => Column(
@@ -413,7 +370,10 @@ class _SkeletonGrid extends StatelessWidget {
             AspectRatio(
               aspectRatio: 2 / 3,
               child: DecoratedBox(
-                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
             ),
             const SizedBox(height: 10),

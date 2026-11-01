@@ -6,7 +6,12 @@ import '../../data/models/book.dart';
 
 /// Network cover with a generated fallback. Fills its (tight) parent box.
 class BookCover extends StatelessWidget {
-  const BookCover({super.key, required this.book, this.radius = 12, this.cacheWidth = 420});
+  const BookCover({
+    super.key,
+    required this.book,
+    this.radius = 4,
+    this.cacheWidth = 420,
+  });
 
   final Book book;
   final double radius;
@@ -39,7 +44,8 @@ class BookCover extends StatelessWidget {
                   fit: BoxFit.cover,
                   memCacheWidth: cacheWidth,
                   fadeInDuration: const Duration(milliseconds: 180),
-                  placeholder: (_, __) => ColoredBox(color: scheme.surfaceContainerHighest),
+                  placeholder: (_, __) =>
+                      ColoredBox(color: scheme.surfaceContainerHighest),
                   errorWidget: (_, __, ___) => _GeneratedCover(book: book),
                 ),
         ),
@@ -70,7 +76,11 @@ class _GeneratedCover extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.menu_book_rounded, color: Colors.white70, size: 22),
+            const Icon(
+              Icons.menu_book_rounded,
+              color: Colors.white70,
+              size: 22,
+            ),
             const SizedBox(height: 8),
             Flexible(
               child: Text(

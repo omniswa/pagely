@@ -21,7 +21,11 @@ class BookDetailsScreen extends ConsumerWidget {
 
   final Book book;
 
-  Future<void> _toggleDownload(BuildContext context, WidgetRef ref, bool downloaded) async {
+  Future<void> _toggleDownload(
+    BuildContext context,
+    WidgetRef ref,
+    bool downloaded,
+  ) async {
     final notifier = ref.read(downloadsProvider.notifier);
     try {
       if (downloaded) {
@@ -38,7 +42,9 @@ class BookDetailsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final isFavorite = ref.watch(favoritesProvider.select((s) => s.contains(book.id)));
+    final isFavorite = ref.watch(
+      favoritesProvider.select((s) => s.contains(book.id)),
+    );
     final downloads = ref.watch(downloadsProvider);
     final downloaded = downloads.completed.contains(book.id);
     final downloading = downloads.active.containsKey(book.id);
@@ -53,15 +59,19 @@ class BookDetailsScreen extends ConsumerWidget {
           IconButton(
             tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
             icon: Icon(
-              isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              isFavorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
               color: isFavorite ? scheme.primary : null,
             ),
-            onPressed: () => ref.read(favoritesProvider.notifier).toggle(book.id),
+            onPressed: () =>
+                ref.read(favoritesProvider.notifier).toggle(book.id),
           ),
           if (started)
             PopupMenuButton<String>(
               tooltip: 'More',
-              onSelected: (_) => ref.read(progressProvider.notifier).clear(book.id),
+              onSelected: (_) =>
+                  ref.read(progressProvider.notifier).clear(book.id),
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'reset', child: Text('Mark as unread')),
               ],
@@ -83,7 +93,11 @@ class BookDetailsScreen extends ConsumerWidget {
                       aspectRatio: 2 / 3,
                       child: Hero(
                         tag: 'cover-${book.id}',
-                        child: BookCover(book: book, radius: 16, cacheWidth: 600),
+                        child: BookCover(
+                          book: book,
+                          radius: 4,
+                          cacheWidth: 600,
+                        ),
                       ),
                     ),
                   ),
@@ -101,7 +115,9 @@ class BookDetailsScreen extends ConsumerWidget {
                   Text(
                     book.author,
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium?.copyWith(color: scheme.onSurfaceVariant),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Wrap(
@@ -110,19 +126,31 @@ class BookDetailsScreen extends ConsumerWidget {
                     runSpacing: 8,
                     children: [
                       if (book.addedLabel.isNotEmpty)
-                        _InfoChip(icon: Icons.calendar_today_rounded, label: 'Added ${book.addedLabel}'),
+                        _InfoChip(
+                          icon: Icons.calendar_today_rounded,
+                          label: 'Added ${book.addedLabel}',
+                        ),
                       _InfoChip(
-                        icon: downloaded ? Icons.download_done_rounded : Icons.cloud_outlined,
+                        icon: downloaded
+                            ? Icons.download_done_rounded
+                            : Icons.cloud_outlined,
                         label: downloaded ? 'Available offline' : 'Online',
                       ),
-                      if (started) _InfoChip(icon: Icons.auto_stories_rounded, label: '$percent% read'),
+                      if (started)
+                        _InfoChip(
+                          icon: Icons.auto_stories_rounded,
+                          label: '$percent% read',
+                        ),
                     ],
                   ),
                   if (started) ...[
                     const SizedBox(height: 16),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(value: progress!.fraction, minHeight: 4),
+                      child: LinearProgressIndicator(
+                        value: progress!.fraction,
+                        minHeight: 4,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 28),
@@ -130,7 +158,9 @@ class BookDetailsScreen extends ConsumerWidget {
                     width: double.infinity,
                     child: FilledButton.icon(
                       icon: const Icon(Icons.menu_book_rounded),
-                      label: Text(started ? 'Continue reading' : 'Start reading'),
+                      label: Text(
+                        started ? 'Continue reading' : 'Start reading',
+                      ),
                       onPressed: () => openReader(context, book),
                     ),
                   ),
@@ -142,19 +172,28 @@ class BookDetailsScreen extends ConsumerWidget {
                           ? SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, value: downloadProgress),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                value: downloadProgress,
+                              ),
                             )
-                          : Icon(downloaded ? Icons.delete_outline_rounded : Icons.download_rounded),
+                          : Icon(
+                              downloaded
+                                  ? Icons.delete_outline_rounded
+                                  : Icons.download_rounded,
+                            ),
                       label: Text(
                         downloading
                             ? (downloadProgress == null
-                                ? 'Downloading…'
-                                : 'Downloading ${(downloadProgress * 100).round()}%')
+                                  ? 'Downloading…'
+                                  : 'Downloading ${(downloadProgress * 100).round()}%')
                             : downloaded
-                                ? 'Remove download'
-                                : 'Download for offline',
+                            ? 'Remove download'
+                            : 'Download for offline',
                       ),
-                      onPressed: downloading ? null : () => _toggleDownload(context, ref, downloaded),
+                      onPressed: downloading
+                          ? null
+                          : () => _toggleDownload(context, ref, downloaded),
                     ),
                   ),
                 ],

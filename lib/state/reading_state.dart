@@ -71,4 +71,4 @@ final parsedBookProvider = FutureProvider.autoDispose.family<ParsedBook, Book>((
   }
   final bytes = await repo.readBytes(book);
   return compute(parseBookBytes, bytes);
-});
+}, retry: (_, _) => null);

@@ -65,6 +65,9 @@ final RegExp _headingPattern = RegExp(
   r'^(chapter|part|book|prologue|epilogue|preface|foreword|introduction|section|act|canto)\b.{0,70}$',
   caseSensitive: false,
 );
+final RegExp _wrappedHeadingPattern = RegExp(
+  r'^---(?=.*[^\s-])\s+\S(?:.*\S)?\s+---$',
+);
 final RegExp _blankLine = RegExp(r'\n[ \t]*\n');
 final RegExp _whitespace = RegExp(r'\s+');
 final RegExp _nonLetters = RegExp(r'[^A-Za-z]');
@@ -111,6 +114,7 @@ ParsedBook parseBookText(String raw) {
 
 bool _isHeading(String s) {
   if (s.length > 80) return false;
+  if (_wrappedHeadingPattern.hasMatch(s)) return true;
   if (_headingPattern.hasMatch(s)) return true;
   final letters = s.replaceAll(_nonLetters, '');
   return letters.length >= 3 && s == s.toUpperCase() && !s.endsWith('.');

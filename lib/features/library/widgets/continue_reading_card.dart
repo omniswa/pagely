@@ -12,13 +12,16 @@ class ContinueReadingCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final book = ref.watch(lastReadBookProvider);
     if (book == null) return const SizedBox.shrink();
-    final fraction = ref.watch(progressProvider.select((m) => m[book.id]?.fraction ?? 0.0));
+    final fraction = ref.watch(
+      progressProvider.select((m) => m[book.id]?.fraction ?? 0.0),
+    );
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
       child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         child: InkWell(
           onTap: () => openReader(context, book),
           child: Padding(
@@ -29,7 +32,7 @@ class ContinueReadingCard extends ConsumerWidget {
                   width: 56,
                   child: AspectRatio(
                     aspectRatio: 2 / 3,
-                    child: BookCover(book: book, radius: 8, cacheWidth: 200),
+                    child: BookCover(book: book, radius: 4, cacheWidth: 200),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -51,29 +54,41 @@ class ContinueReadingCard extends ConsumerWidget {
                         book.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       Text(
                         book.author,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(height: 10),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(value: fraction, minHeight: 4),
+                        child: LinearProgressIndicator(
+                          value: fraction,
+                          minHeight: 4,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${(fraction * 100).round()}% read',
-                        style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: scheme.onSurfaceVariant,
+                ),
               ],
             ),
           ),

@@ -11,6 +11,7 @@ import '../data/providers.dart';
 
 final catalogProvider = AsyncNotifierProvider<CatalogNotifier, CatalogResult>(
   CatalogNotifier.new,
+  retry: (_, _) => null,
 );
 
 class CatalogNotifier extends AsyncNotifier<CatalogResult> {
@@ -47,7 +48,7 @@ class CatalogNotifier extends AsyncNotifier<CatalogResult> {
 enum LibraryFilter {
   all('All'),
   favorites('Favorites'),
-  downloaded('Downloaded');
+  downloaded('Downloads');
 
   const LibraryFilter(this.label);
   final String label;
@@ -149,8 +150,9 @@ class DownloadsNotifier extends Notifier<DownloadsState> {
 
   /// De-duplicates concurrent downloads of the same book.
   Future<void> download(Book book) =>
-      _inflight[book.id] ??= _run(book)
-          .whenComplete(() => _inflight.remove(book.id));
+      _inflight[book.id] ??= _run(book).whenComplete(() {
+        _inflight.remove(book.id);
+      });
 
   Future<void> _run(Book book) async {
     _setProgress(book.id, null);
