@@ -14,6 +14,7 @@ class LocalStore {
   static const _catalogKey = 'catalog_cache_v1';
   static const _favoritesKey = 'favorites_v1';
   static const _downloadedKey = 'downloaded_v1';
+  static const _downloadedVersionsKey = 'downloaded_versions_v1';
   static const _progressKey = 'progress_v1';
   static const _settingsKey = 'settings_v1';
 
@@ -28,6 +29,42 @@ class LocalStore {
   Set<int> get downloaded => _readIntSet(_downloadedKey);
   Future<void> saveDownloaded(Set<int> ids) =>
       _writeIntSet(_downloadedKey, ids);
+
+  Map<int, String> get downloadedVersions {
+    final raw = _prefs.getString(_downloadedVersionsKey);
+    if (raw == null) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return {};
+      return {
+        for (final entry in decoded.entries)
+          if (int.tryParse(entry.key) case final int id)
+            if (entry.value is String) id: entry.value as String,
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> saveDownloadedVersion(int bookId, String? version) async {
+    final versions = downloadedVersions;
+    if (version == null) {
+      versions.remove(bookId);
+    } else {
+      versions[bookId] = version;
+    }
+    final saved = await _prefs.setString(
+      _downloadedVersionsKey,
+      jsonEncode({
+        for (final entry in versions.entries) '${entry.key}': entry.value,
+      }),
+    );
+    if (!saved) throw StateError('Could not save downloaded book version.');
+  }
+
+  Future<void> clearDownloadedVersions() async {
+    await _prefs.remove(_downloadedVersionsKey);
+  }
 
   Map<int, ReadingProgress> get progress {
     final raw = _prefs.getString(_progressKey);

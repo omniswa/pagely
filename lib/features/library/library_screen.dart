@@ -26,9 +26,7 @@ class LibraryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final books = ref.watch(visibleBooksProvider);
-    final offline = ref.watch(
-      catalogProvider.select((c) => c.value?.fromCache ?? false),
-    );
+    final offline = ref.watch(catalogOfflineProvider);
     final query = ref.watch(libraryQueryProvider);
     final showContinue =
         query.text.isEmpty && query.filter == LibraryFilter.all;

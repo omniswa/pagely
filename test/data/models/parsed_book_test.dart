@@ -33,4 +33,37 @@ void main() {
       false,
     ]);
   });
+
+  test('does not detect dialogue or short shouts as headings', () {
+    final parsed = parseBookText(
+      'Part of me wanted to leave.\n\n'
+      'Act now, she said.\n\n'
+      'NO!\n\n'
+      'WAIT',
+    );
+
+    expect(parsed.chapters, isEmpty);
+    expect(parsed.paragraphs.map((paragraph) => paragraph.isHeading), [
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  test('detects structured and multiword uppercase headings', () {
+    final parsed = parseBookText(
+      'Chapter 1: The Beginning\n\n'
+      'Part II\n\n'
+      'THE BEGINNING\n\n'
+      'Prologue: The Beginning',
+    );
+
+    expect(parsed.chapters.map((chapter) => chapter.title), [
+      'Chapter 1: The Beginning',
+      'Part II',
+      'THE BEGINNING',
+      'Prologue: The Beginning',
+    ]);
+  });
 }

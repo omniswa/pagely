@@ -31,117 +31,122 @@ class BookCard extends ConsumerWidget {
     return Semantics(
       button: true,
       label: '${book.title} by ${book.author}',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
-        child: AspectRatio(
-          aspectRatio: 2 / 3,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Hero(
-                tag: 'cover-${book.id}',
-                child: BookCover(book: book),
-              ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(10, 32, 10, 12),
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black54,
-                              Colors.black87,
-                            ],
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              book.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                height: 1.2,
-                                shadows: const [
-                                  Shadow(color: Colors.black54, blurRadius: 4),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              book.author,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                shadows: const [
-                                  Shadow(color: Colors.black54, blurRadius: 4),
-                                ],
-                              ),
-                            ),
+      child: AspectRatio(
+        aspectRatio: 2 / 3,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Hero(
+              tag: 'cover-${book.id}',
+              child: BookCover(book: book),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(10, 32, 10, 12),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black54,
+                            Colors.black87,
                           ],
                         ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            book.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              height: 1.2,
+                              shadows: const [
+                                Shadow(color: Colors.black54, blurRadius: 4),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            book.author,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              shadows: const [
+                                Shadow(color: Colors.black54, blurRadius: 4),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: Stack(
-                      children: [
-                        if (started)
-                          Align(
-                            alignment: Alignment.bottomCenter,
-                            child: LinearProgressIndicator(
-                              value: fraction,
-                              minHeight: 3,
-                              backgroundColor: Colors.black26,
-                            ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Stack(
+                    children: [
+                      if (started)
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: LinearProgressIndicator(
+                            value: fraction,
+                            minHeight: 3,
+                            backgroundColor: Colors.black26,
                           ),
-                        if (isFavorite || isDownloaded)
-                          Positioned(
-                            top: 6,
-                            right: 6,
-                            child: Column(
-                              children: [
-                                if (isFavorite)
-                                  const _Badge(
-                                    icon: Icons.favorite_rounded,
-                                    color: Color(0xFFFF6B7A),
-                                  ),
-                                if (isFavorite && isDownloaded)
-                                  const SizedBox(height: 4),
-                                if (isDownloaded)
-                                  const _Badge(
-                                    icon: Icons.download_done_rounded,
-                                    color: Colors.white,
-                                  ),
-                              ],
-                            ),
+                        ),
+                      if (isFavorite || isDownloaded)
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Column(
+                            children: [
+                              if (isFavorite)
+                                const _Badge(
+                                  icon: Icons.favorite_rounded,
+                                  color: Color(0xFFFF6B7A),
+                                ),
+                              if (isFavorite && isDownloaded)
+                                const SizedBox(height: 4),
+                              if (isDownloaded)
+                                const _Badge(
+                                  icon: Icons.download_done_rounded,
+                                  color: Colors.white,
+                                ),
+                            ],
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+            Positioned.fill(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onTap,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

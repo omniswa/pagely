@@ -2,8 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Computes a column count and a fixed row height so cards never overflow,
-/// regardless of screen width or text scale.
+/// Computes a column count and a fixed row height matching the cover aspect ratio.
 class BookGridSpec {
   const BookGridSpec({required this.columns, required this.mainAxisExtent});
 
@@ -14,12 +13,10 @@ class BookGridSpec {
 
   factory BookGridSpec.compute({
     required double width,
-    required double textScale,
   }) {
     final columns = math.max(2, (width / 168).floor());
     final itemWidth = (width - spacing * (columns - 1)) / columns;
-    // Cover (2:3), card padding, title, and author.
-    final extent = itemWidth * 1.5 + 12 + 52 * textScale;
+    final extent = itemWidth * 1.5;
     return BookGridSpec(columns: columns, mainAxisExtent: extent);
   }
 
@@ -44,12 +41,10 @@ class AdaptiveBookGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
     return SliverLayoutBuilder(
       builder: (context, constraints) {
         final spec = BookGridSpec.compute(
           width: constraints.crossAxisExtent,
-          textScale: scale,
         );
         return SliverGrid.builder(
           gridDelegate: spec.delegate,

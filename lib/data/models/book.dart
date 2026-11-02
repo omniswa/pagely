@@ -13,6 +13,7 @@ class Book {
     required this.coverPath,
     required this.filePath,
     this.addedAt,
+    this.contentVersion,
   });
 
   final int id;
@@ -22,13 +23,16 @@ class Book {
   final DateTime? addedAt;
   final String coverPath;
   final String filePath;
+  final String? contentVersion;
 
   /// Tolerant parser: returns null for entries that cannot be used.
   static Book? tryFromJson(Map<String, dynamic> json) {
     final id = _asInt(json['id']);
     final file = json['file'];
     if (id == null || file is! String || file.trim().isEmpty) return null;
-    final added = (json['added'] is String) ? (json['added'] as String).trim() : '';
+    final added = (json['added'] is String)
+        ? (json['added'] as String).trim()
+        : '';
     return Book(
       id: id,
       title: _text(json['title'], 'Untitled'),
@@ -37,6 +41,7 @@ class Book {
       addedAt: _parseDate(added),
       coverPath: _text(json['cover'], ''),
       filePath: file.trim(),
+      contentVersion: _contentVersion(json),
     );
   }
 
@@ -54,6 +59,30 @@ class Book {
     return s.isEmpty ? fallback : s;
   }
 
+  static String? _contentVersion(Map<String, dynamic> json) {
+    const fields = [
+      'content_version',
+      'version',
+      'etag',
+      'ETag',
+      'last_modified',
+      'updated_at',
+      'modified',
+      'file_size',
+      'size',
+    ];
+    final parts = <String>[];
+    for (final field in fields) {
+      final value = json[field];
+      if (value is String && value.trim().isNotEmpty) {
+        parts.add('$field:${value.trim()}');
+      } else if (value is num) {
+        parts.add('$field:$value');
+      }
+    }
+    return parts.isEmpty ? null : parts.join('|');
+  }
+
   static DateTime? _parseDate(String s) {
     if (s.isEmpty) return null;
     try {
@@ -64,8 +93,9 @@ class Book {
   }
 
   @override
-  bool operator ==(Object other) => other is Book && other.id == id;
+  bool operator ==(Object other) =>
+      other is Book && other.id == id && other.contentVersion == contentVersion;
 
   @override
-  int get hashCode => id.hashCode;
+  int get hashCode => Object.hash(id, contentVersion);
 }

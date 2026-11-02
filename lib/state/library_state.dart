@@ -3,11 +3,25 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/errors.dart';
 import '../data/book_repository.dart';
 import '../data/models/book.dart';
 import '../data/providers.dart';
 
 // ---- Catalog -----------------------------------------------------------------
+
+final catalogOfflineProvider = NotifierProvider<CatalogOfflineNotifier, bool>(
+  CatalogOfflineNotifier.new,
+);
+
+class CatalogOfflineNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void setOffline(bool value) {
+    if (state != value) state = value;
+  }
+}
 
 final catalogProvider = AsyncNotifierProvider<CatalogNotifier, CatalogResult>(
   CatalogNotifier.new,
@@ -19,9 +33,19 @@ class CatalogNotifier extends AsyncNotifier<CatalogResult> {
 
   @override
   Future<CatalogResult> build() async {
+    ref.read(catalogOfflineProvider.notifier).setOffline(false);
     final repository = ref.read(bookRepositoryProvider);
     final cached = await repository.loadCachedCatalog();
-    if (cached == null) return repository.refreshCatalog();
+    if (cached == null) {
+      try {
+        return await repository.refreshCatalog();
+      } catch (e) {
+        ref
+            .read(catalogOfflineProvider.notifier)
+            .setOffline(e is AppException && e.isOffline);
+        rethrow;
+      }
+    }
 
     Timer.run(() => unawaited(refresh()));
     return cached;
@@ -34,9 +58,13 @@ class CatalogNotifier extends AsyncNotifier<CatalogResult> {
   Future<bool> _refreshCatalog() async {
     try {
       final result = await ref.read(bookRepositoryProvider).refreshCatalog();
+      ref.read(catalogOfflineProvider.notifier).setOffline(false);
       state = AsyncData(result);
       return true;
     } catch (e, st) {
+      ref
+          .read(catalogOfflineProvider.notifier)
+          .setOffline(e is AppException && e.isOffline);
       if (!state.hasValue) state = AsyncError(e, st);
       return false;
     }
@@ -143,16 +171,21 @@ final downloadsProvider = NotifierProvider<DownloadsNotifier, DownloadsState>(
 
 class DownloadsNotifier extends Notifier<DownloadsState> {
   final Map<int, Future<void>> _inflight = {};
+  Future<void>? _clearInProgress;
 
   @override
   DownloadsState build() =>
       DownloadsState(completed: ref.read(localStoreProvider).downloaded);
 
   /// De-duplicates concurrent downloads of the same book.
-  Future<void> download(Book book) =>
-      _inflight[book.id] ??= _run(book).whenComplete(() {
-        _inflight.remove(book.id);
-      });
+  Future<void> download(Book book) async {
+    final clearInProgress = _clearInProgress;
+    if (clearInProgress != null) await clearInProgress;
+
+    await (_inflight[book.id] ??= _run(book).whenComplete(() {
+      _inflight.remove(book.id);
+    }));
+  }
 
   Future<void> _run(Book book) async {
     _setProgress(book.id, null);
@@ -185,6 +218,28 @@ class DownloadsNotifier extends Notifier<DownloadsState> {
   }
 
   Future<void> clearAll() async {
+    if (state.active.isNotEmpty) {
+      throw const AppException(
+        'Wait for active downloads to finish before clearing downloads.',
+      );
+    }
+
+    final clearInProgress = _clearInProgress;
+    if (clearInProgress != null) {
+      await clearInProgress;
+      return;
+    }
+
+    final clearing = _clearDownloads();
+    _clearInProgress = clearing;
+    try {
+      await clearing;
+    } finally {
+      _clearInProgress = null;
+    }
+  }
+
+  Future<void> _clearDownloads() async {
     await ref.read(bookRepositoryProvider).deleteAll();
     state = const DownloadsState();
     unawaited(ref.read(localStoreProvider).saveDownloaded(const {}));

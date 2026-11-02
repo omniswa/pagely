@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ending_flutter/core/errors.dart';
 import 'package:ending_flutter/data/book_repository.dart';
 import 'package:ending_flutter/data/local_store.dart';
@@ -12,6 +14,63 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  test('cached catalog does not show offline status until an offline refresh fails', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final repository = _CachedFailureBookRepository(
+      preferences,
+      const AppException('Offline', isOffline: true),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(preferences),
+        bookRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final subscription = container.listen(catalogProvider, (_, _) {});
+    addTearDown(subscription.close);
+
+    await container.read(catalogProvider.future);
+    expect(container.read(catalogOfflineProvider), isFalse);
+
+    await repository.refreshStarted.future;
+    repository.failRefresh();
+    expect(await container.read(catalogProvider.notifier).refresh(), isFalse);
+    expect(container.read(catalogOfflineProvider), isTrue);
+  });
+
+  test(
+    'a failed server refresh does not mark the catalog as offline',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await SharedPreferences.getInstance();
+      final repository = _CachedFailureBookRepository(
+        preferences,
+        const AppException('Server responded with 500.'),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          bookRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final subscription = container.listen(catalogProvider, (_, _) {});
+      addTearDown(subscription.close);
+
+      await container.read(catalogProvider.future);
+      expect(container.read(catalogOfflineProvider), isFalse);
+
+      await repository.refreshStarted.future;
+      repository.failRefresh();
+      expect(await container.read(catalogProvider.notifier).refresh(), isFalse);
+      expect(container.read(catalogOfflineProvider), isFalse);
+    },
+  );
+
   test(
     'an offline launch without a cached catalog stays in error state',
     () async {
@@ -111,4 +170,25 @@ class _OfflineBookRepository extends BookRepository {
     downloadAttempts++;
     throw const AppException('Offline', isOffline: true);
   }
+}
+
+class _CachedFailureBookRepository extends BookRepository {
+  _CachedFailureBookRepository(SharedPreferences preferences, this.error)
+    : super(client: http.Client(), store: LocalStore(preferences));
+
+  final AppException error;
+  final Completer<void> refreshStarted = Completer<void>();
+  final Completer<CatalogResult> refreshResult = Completer<CatalogResult>();
+
+  @override
+  Future<CatalogResult?> loadCachedCatalog() async =>
+      const CatalogResult(books: [], fromCache: true);
+
+  @override
+  Future<CatalogResult> refreshCatalog() {
+    if (!refreshStarted.isCompleted) refreshStarted.complete();
+    return refreshResult.future;
+  }
+
+  void failRefresh() => refreshResult.completeError(error);
 }

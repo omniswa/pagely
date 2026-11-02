@@ -127,11 +127,23 @@ class BookRepository {
     '${(await _booksDir()).path}${Platform.pathSeparator}${book.id}.txt',
   );
 
-  Future<bool> isDownloaded(Book book) async => (await _fileFor(book)).exists();
+  Future<bool> isDownloaded(Book book) async {
+    final file = await _fileFor(book);
+    if (!await file.exists()) return false;
+    final version = book.contentVersion;
+    return version == null || _store.downloadedVersions[book.id] == version;
+  }
 
   Future<Uint8List> readBytes(Book book) async {
     try {
+      if (!await isDownloaded(book)) {
+        throw const AppException(
+          'This book needs to be refreshed before it can be read offline.',
+        );
+      }
       return await (await _fileFor(book)).readAsBytes();
+    } on AppException {
+      rethrow;
     } on FileSystemException {
       throw const AppException('This book is not available offline yet.');
     }
@@ -184,6 +196,7 @@ class BookRepository {
       sink = null;
       if (await target.exists()) await target.delete();
       await temp.rename(target.path);
+      await _store.saveDownloadedVersion(book.id, book.contentVersion);
     } catch (error) {
       try {
         await sink?.close();
@@ -197,6 +210,7 @@ class BookRepository {
     try {
       final file = await _fileFor(book);
       if (await file.exists()) await file.delete();
+      await _store.saveDownloadedVersion(book.id, null);
     } catch (error) {
       throw _toAppException(error);
     }
@@ -206,6 +220,7 @@ class BookRepository {
     try {
       final dir = await _booksDir();
       if (await dir.exists()) await dir.delete(recursive: true);
+      await _store.clearDownloadedVersions();
     } catch (error) {
       throw _toAppException(error);
     }

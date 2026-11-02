@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -226,11 +227,19 @@ class _ReaderViewState extends ConsumerState<_ReaderView>
   late final ValueNotifier<bool> _chromeVisible;
   late final ProgressNotifier _progress;
   late final int _initialIndex;
+  EdgeInsets? _initialInsets;
   Timer? _saveTimer;
   bool _dirty = false;
+  bool _hasUserScrolled = false;
 
   ParsedBook get _parsed => widget.parsed;
   int get _count => _parsed.paragraphs.length;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _initialInsets ??= MediaQuery.paddingOf(context);
+  }
 
   @override
   void initState() {
@@ -319,6 +328,8 @@ class _ReaderViewState extends ConsumerState<_ReaderView>
   }
 
   void _onPositionsChanged() {
+    if (!_hasUserScrolled) return;
+
     final positions = _positions.itemPositions.value;
     if (positions.isEmpty) return;
 
@@ -356,6 +367,13 @@ class _ReaderViewState extends ConsumerState<_ReaderView>
     _dirty = true;
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 700), _persist);
+  }
+
+  bool _onUserScroll(UserScrollNotification notification) {
+    if (notification.direction != ScrollDirection.idle) {
+      _hasUserScrolled = true;
+    }
+    return false;
   }
 
   void _persist() {
@@ -409,7 +427,7 @@ class _ReaderViewState extends ConsumerState<_ReaderView>
   Widget build(BuildContext context) {
     final s = ref.watch(settingsProvider);
     final palette = s.readerTheme;
-    final insets = MediaQuery.paddingOf(context);
+    final insets = _initialInsets!;
     final body = s.readerFont.style(
       size: s.fontSize,
       height: s.lineHeight,
@@ -430,18 +448,21 @@ class _ReaderViewState extends ConsumerState<_ReaderView>
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _toggleChrome,
-              child: ScrollablePositionedList.builder(
-                itemCount: _count,
-                itemScrollController: _itemScroll,
-                itemPositionsListener: _positions,
-                initialScrollIndex: _initialIndex,
-                itemBuilder: (context, i) => _ParagraphView(
-                  paragraph: _parsed.paragraphs[i],
-                  bodyStyle: body,
-                  headingStyle: heading,
-                  justify: s.justify,
-                  extraTop: i == 0 ? 72 : 0,
-                  extraBottom: i == _count - 1 ? 140 : 0,
+              child: NotificationListener<UserScrollNotification>(
+                onNotification: _onUserScroll,
+                child: ScrollablePositionedList.builder(
+                  itemCount: _count,
+                  itemScrollController: _itemScroll,
+                  itemPositionsListener: _positions,
+                  initialScrollIndex: _initialIndex,
+                  itemBuilder: (context, i) => _ParagraphView(
+                    paragraph: _parsed.paragraphs[i],
+                    bodyStyle: body,
+                    headingStyle: heading,
+                    justify: s.justify,
+                    extraTop: i == 0 ? 72 : 0,
+                    extraBottom: i == _count - 1 ? 140 : 0,
+                  ),
                 ),
               ),
             ),
@@ -640,7 +661,7 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _BottomBar extends StatelessWidget {
+class _BottomBar extends StatefulWidget {
   const _BottomBar({
     required this.index,
     required this.characterOffset,
@@ -656,6 +677,13 @@ class _BottomBar extends StatelessWidget {
   final ValueChanged<int> onSeek;
 
   @override
+  State<_BottomBar> createState() => _BottomBarState();
+}
+
+class _BottomBarState extends State<_BottomBar> {
+  double? _dragFraction;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SafeArea(
@@ -663,13 +691,15 @@ class _BottomBar extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
         child: ValueListenableBuilder<int>(
-          valueListenable: characterOffset,
+          valueListenable: widget.characterOffset,
           builder: (context, i, _) {
-            final fraction = parsed.characterCount <= 0
+            final fraction = widget.parsed.characterCount <= 0
                 ? 0.0
-                : (i / parsed.characterCount).clamp(0.0, 1.0).toDouble();
-            final paragraphIndex = index.value;
-            final chapter = parsed.chapterAt(paragraphIndex)?.title ?? '';
+                : (i / widget.parsed.characterCount).clamp(0.0, 1.0).toDouble();
+            final displayedFraction = _dragFraction ?? fraction;
+            final paragraphIndex = widget.index.value;
+            final chapter =
+                widget.parsed.chapterAt(paragraphIndex)?.title ?? '';
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -681,15 +711,15 @@ class _BottomBar extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.labelMedium?.copyWith(
-                          color: palette.muted,
+                          color: widget.palette.muted,
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      '${ReadingProgress.percentageForFraction(fraction)}%',
+                      '${ReadingProgress.percentageForFraction(displayedFraction)}%',
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: palette.foreground,
+                        color: widget.palette.foreground,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -706,19 +736,23 @@ class _BottomBar extends StatelessWidget {
                     ),
                     activeTrackColor: theme.colorScheme.primary,
                     thumbColor: theme.colorScheme.primary,
-                    inactiveTrackColor: palette.foreground.withValues(
+                    inactiveTrackColor: widget.palette.foreground.withValues(
                       alpha: 0.15,
                     ),
                   ),
                   child: Slider(
-                    value: fraction,
+                    value: displayedFraction,
                     min: 0,
                     max: 1,
-                    onChanged: (v) => onSeek(
-                      parsed.paragraphIndexAtOffset(
-                        (v * parsed.characterCount).round(),
-                      ),
-                    ),
+                    onChanged: (value) => setState(() => _dragFraction = value),
+                    onChangeEnd: (value) {
+                      widget.onSeek(
+                        widget.parsed.paragraphIndexAtOffset(
+                          (value * widget.parsed.characterCount).round(),
+                        ),
+                      );
+                      setState(() => _dragFraction = null);
+                    },
                   ),
                 ),
               ],

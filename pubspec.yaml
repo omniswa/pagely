@@ -27,3 +27,15 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/Inter-Regular.ttf
+    - assets/fonts/Inter-Medium.ttf
+    - assets/fonts/Inter-SemiBold.ttf
+    - assets/fonts/Inter-Bold.ttf
+    - assets/fonts/Inter-OFL.txt
+    - assets/fonts/JetBrainsMono-Regular.ttf
+    - assets/fonts/JetBrainsMono-Bold.ttf
+    - assets/fonts/JetBrainsMono-OFL.txt
+    - assets/fonts/Literata-Regular.ttf
+    - assets/fonts/Literata-Bold.ttf
+    - assets/fonts/Literata-OFL.txt

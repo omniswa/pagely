@@ -16,9 +16,14 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Clear downloads?'),
-        content: const Text('Downloaded books will be removed from this device. Your progress is kept.'),
+        content: const Text(
+          'Downloaded books will be removed from this device. Your progress is kept.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
             onPressed: () => Navigator.pop(ctx, true),
@@ -40,7 +45,12 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
-    final downloadCount = ref.watch(downloadsProvider.select((s) => s.completed.length));
+    final downloadCount = ref.watch(
+      downloadsProvider.select((s) => s.completed.length),
+    );
+    final hasActiveDownloads = ref.watch(
+      downloadsProvider.select((s) => s.active.isNotEmpty),
+    );
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -61,24 +71,40 @@ class SettingsScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Theme', style: Theme.of(context).textTheme.labelLarge),
+                          Text(
+                            'Theme',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
                             child: SegmentedButton<ThemeMode>(
                               showSelectedIcon: false,
                               segments: const [
-                                ButtonSegment(value: ThemeMode.system, label: Text('System')),
-                                ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                                ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                                ButtonSegment(
+                                  value: ThemeMode.system,
+                                  label: Text('System'),
+                                ),
+                                ButtonSegment(
+                                  value: ThemeMode.light,
+                                  label: Text('Light'),
+                                ),
+                                ButtonSegment(
+                                  value: ThemeMode.dark,
+                                  label: Text('Dark'),
+                                ),
                               ],
                               selected: {settings.themeMode},
-                              onSelectionChanged: (v) =>
-                                  notifier.apply((c) => c.copyWith(themeMode: v.first)),
+                              onSelectionChanged: (v) => notifier.apply(
+                                (c) => c.copyWith(themeMode: v.first),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 20),
-                          Text('Accent color', style: Theme.of(context).textTheme.labelLarge),
+                          Text(
+                            'Accent color',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
                           const SizedBox(height: 12),
                           Wrap(
                             spacing: 12,
@@ -88,7 +114,9 @@ class SettingsScreen extends ConsumerWidget {
                                 _AccentSwatch(
                                   option: AppTheme.accents[i],
                                   selected: settings.accentIndex == i,
-                                  onTap: () => notifier.apply((c) => c.copyWith(accentIndex: i)),
+                                  onTap: () => notifier.apply(
+                                    (c) => c.copyWith(accentIndex: i),
+                                  ),
                                 ),
                             ],
                           ),
@@ -103,14 +131,18 @@ class SettingsScreen extends ConsumerWidget {
                     ListTile(
                       leading: const Icon(Icons.download_done_rounded),
                       title: const Text('Downloaded books'),
-                      subtitle: Text('$downloadCount saved for offline reading'),
+                      subtitle: Text(
+                        '$downloadCount saved for offline reading',
+                      ),
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: Icon(Icons.delete_outline_rounded,
-                          color: downloadCount == 0 ? null : scheme.error),
+                      leading: Icon(
+                        Icons.delete_outline_rounded,
+                        color: downloadCount == 0 ? null : scheme.error,
+                      ),
                       title: const Text('Clear downloads'),
-                      enabled: downloadCount > 0,
+                      enabled: downloadCount > 0 && !hasActiveDownloads,
                       onTap: () => _confirmClear(context, ref),
                     ),
                   ],
@@ -173,7 +205,11 @@ class _Section extends StatelessWidget {
 }
 
 class _AccentSwatch extends StatelessWidget {
-  const _AccentSwatch({required this.option, required this.selected, required this.onTap});
+  const _AccentSwatch({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
 
   final AccentOption option;
   final bool selected;
@@ -195,11 +231,15 @@ class _AccentSwatch extends StatelessWidget {
             color: option.color,
             shape: BoxShape.circle,
             border: Border.all(
-              color: selected ? Theme.of(context).colorScheme.onSurface : Colors.transparent,
+              color: selected
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Colors.transparent,
               width: 2.5,
             ),
           ),
-          child: selected ? const Icon(Icons.check_rounded, color: Colors.white) : null,
+          child: selected
+              ? const Icon(Icons.check_rounded, color: Colors.white)
+              : null,
         ),
       ),
     );

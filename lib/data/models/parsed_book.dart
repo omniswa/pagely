@@ -62,7 +62,7 @@ class ParsedBook {
 }
 
 final RegExp _headingPattern = RegExp(
-  r'^(chapter|part|book|prologue|epilogue|preface|foreword|introduction|section|act|canto)\b.{0,70}$',
+  r'^(chapter|part|book|prologue|epilogue|preface|foreword|introduction|section|act|canto)(?:\s+(?:\d+|[ivxlcdm]+)(?:\b.*)?|[:\-–—]\s*\S.*)$',
   caseSensitive: false,
 );
 final RegExp _wrappedHeadingPattern = RegExp(
@@ -71,6 +71,7 @@ final RegExp _wrappedHeadingPattern = RegExp(
 final RegExp _blankLine = RegExp(r'\n[ \t]*\n');
 final RegExp _whitespace = RegExp(r'\s+');
 final RegExp _nonLetters = RegExp(r'[^A-Za-z]');
+final RegExp _sentenceEnding = RegExp(r'[.!?]$');
 
 /// Top-level so it can run in a background isolate via `compute`.
 ParsedBook parseBookBytes(Uint8List bytes) =>
@@ -115,7 +116,11 @@ ParsedBook parseBookText(String raw) {
 bool _isHeading(String s) {
   if (s.length > 80) return false;
   if (_wrappedHeadingPattern.hasMatch(s)) return true;
-  if (_headingPattern.hasMatch(s)) return true;
+  if (_headingPattern.hasMatch(s) && !_sentenceEnding.hasMatch(s)) return true;
   final letters = s.replaceAll(_nonLetters, '');
-  return letters.length >= 3 && s == s.toUpperCase() && !s.endsWith('.');
+  final words = s.split(_whitespace);
+  return letters.length >= 3 &&
+      words.length > 1 &&
+      s == s.toUpperCase() &&
+      !_sentenceEnding.hasMatch(s);
 }
